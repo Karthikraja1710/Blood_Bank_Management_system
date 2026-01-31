@@ -24,3 +24,11 @@ export interface ChatMessage {
   text: string;
   timestamp: Date;
 }
+
+export interface HealthInsight {
+  title: string;
+  category: 'Post-Donation' | 'Nutrition' | 'Conditions' | 'General';
+  content: string;
+  tips: string[];
+  disclaimer: string;
+}

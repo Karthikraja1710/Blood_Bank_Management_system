@@ -1,7 +1,6 @@
 
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 
-// Always initialize GoogleGenAI with a named parameter using process.env.API_KEY directly.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 /**
@@ -11,20 +10,60 @@ export async function getBloodBotResponse(message: string, history: { role: 'use
   const chat = ai.chats.create({
     model: 'gemini-3-pro-preview',
     config: {
-      systemInstruction: `You are LifeLink AI, a specialized medical assistant for a blood bank system. 
-      Your goals:
-      1. Calmly help users find blood centers.
-      2. Explain donor eligibility (weight, age, health status).
-      3. Provide information on blood types and compatibility.
-      4. DO NOT provide definitive medical diagnoses. Always advise consulting a doctor.
+      systemInstruction: `You are LifeLink AI Medical Assistant. 
+      Your expertise includes:
+      1. Blood donation eligibility and post-donation recovery.
+      2. Nutritional advice for maintaining healthy iron and hemoglobin levels.
+      3. General information on blood conditions (Anemia, Blood types, Hemophilia) for educational purposes.
+      4. Emergency blood search coordination.
+
+      CRITICAL SAFETY RULE: 
+      Every response regarding health or medical conditions MUST begin or end with a prominent disclaimer: 
+      "MEDICAL DISCLAIMER: This information is for educational purposes only and does not substitute professional medical advice. Always consult a physician for diagnoses or treatment."
+      
       Keep responses professional, empathetic, and concise.`,
     },
   });
 
-  // sendMessage accepts only the message parameter.
   const response = await chat.sendMessage({ message });
-  // response.text is a property, not a function.
   return response.text;
+}
+
+/**
+ * Structured Health Insights using Gemini 3 Flash
+ */
+export async function getHealthInsight(topic: string) {
+  const response = await ai.models.generateContent({
+    model: 'gemini-3-flash-preview',
+    contents: `Provide structured medical information about: ${topic}. Focus on blood health.`,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          title: { type: Type.STRING },
+          category: { 
+            type: Type.STRING, 
+            enum: ['Post-Donation', 'Nutrition', 'Conditions', 'General'] 
+          },
+          content: { type: Type.STRING },
+          tips: { 
+            type: Type.ARRAY, 
+            items: { type: Type.STRING } 
+          },
+          disclaimer: { type: Type.STRING }
+        },
+        required: ["title", "category", "content", "tips", "disclaimer"]
+      }
+    }
+  });
+
+  try {
+    return JSON.parse(response.text || '{}');
+  } catch (e) {
+    console.error("Failed to parse health insight", e);
+    return null;
+  }
 }
 
 /**
@@ -33,7 +72,7 @@ export async function getBloodBotResponse(message: string, history: { role: 'use
 export async function searchBloodShortages(region: string) {
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
-    contents: `Are there any critical blood shortages or donation drives currently reported in ${region}? Summarize findings.`,
+    contents: `Are there any critical blood shortages, emergency drives, or public health alerts related to blood donation currently reported in ${region}?`,
     config: {
       tools: [{ googleSearch: {} }],
     },
@@ -41,26 +80,6 @@ export async function searchBloodShortages(region: string) {
   
   return {
     text: response.text,
-    // groundingChunks must be extracted when using search grounding.
-    sources: response.candidates?.[0]?.groundingMetadata?.groundingChunks || []
-  };
-}
-
-/**
- * Maps Grounding using Gemini 2.5 Flash
- */
-export async function findPublicBloodCenters(location: string) {
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
-    contents: `Find reputable government blood banks or public hospitals with blood donation centers near ${location}.`,
-    config: {
-      tools: [{ googleMaps: {} }],
-    },
-  });
-
-  return {
-    text: response.text,
-    // groundingChunks must be extracted when using maps grounding.
     sources: response.candidates?.[0]?.groundingMetadata?.groundingChunks || []
   };
 }
