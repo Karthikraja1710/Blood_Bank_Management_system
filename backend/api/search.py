@@ -3,14 +3,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.database import get_db
-from app.schemas.request import BloodSearchRequest
+from app.schemas.request import BloodSearchRequest, SortPreference
 from app.schemas.response import BloodSearchResponse
 
 router = APIRouter()
 
 @router.post("/search-blood", response_model=BloodSearchResponse)
 async def search_blood(req: BloodSearchRequest, db: Session = Depends(get_db)):
-    # Use PostGIS to find blood banks with availability and aggregate full inventory as JSON
+    # Standard query to get nearby active centers
     query = text("""
         SELECT 
             bb.id as blood_bank_id,
@@ -38,8 +38,6 @@ async def search_blood(req: BloodSearchRequest, db: Session = Depends(get_db)):
               AND blood_type = :blood_type 
               AND units_available > 0
           )
-        ORDER BY distance_km ASC
-        LIMIT 5
     """)
     
     results = db.execute(query, {
@@ -50,8 +48,9 @@ async def search_blood(req: BloodSearchRequest, db: Session = Depends(get_db)):
 
     formatted_results = []
     for row in results:
-        # Business logic for ETA calculation (simulated)
-        eta = int(row.distance_km * 2.5) # simplified model: 2.5 mins per km
+        # Business logic for ETA calculation (simulated for MVP)
+        # In production, this would call Google Distance Matrix
+        eta = int(row.distance_km * 2.5) 
         formatted_results.append({
             "id": str(row.blood_bank_id),
             "name": row.name,
@@ -66,4 +65,10 @@ async def search_blood(req: BloodSearchRequest, db: Session = Depends(get_db)):
             "google_maps_url": f"https://www.google.com/maps/dir/?api=1&destination={row.latitude},{row.longitude}"
         })
 
-    return {"results": formatted_results}
+    # Apply sorting preference
+    if req.sort_by == SortPreference.ETA:
+        formatted_results.sort(key=lambda x: x["eta_minutes"])
+    else:
+        formatted_results.sort(key=lambda x: x["distance_km"])
+
+    return {"results": formatted_results[:5]}

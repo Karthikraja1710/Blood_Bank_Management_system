@@ -1,7 +1,8 @@
 
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+// Always initialize GoogleGenAI with a named parameter using process.env.API_KEY directly.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 /**
  * AI Assistant (BloodBot) using Gemini 3 Pro
@@ -20,7 +21,9 @@ export async function getBloodBotResponse(message: string, history: { role: 'use
     },
   });
 
+  // sendMessage accepts only the message parameter.
   const response = await chat.sendMessage({ message });
+  // response.text is a property, not a function.
   return response.text;
 }
 
@@ -38,6 +41,7 @@ export async function searchBloodShortages(region: string) {
   
   return {
     text: response.text,
+    // groundingChunks must be extracted when using search grounding.
     sources: response.candidates?.[0]?.groundingMetadata?.groundingChunks || []
   };
 }
@@ -56,6 +60,7 @@ export async function findPublicBloodCenters(location: string) {
 
   return {
     text: response.text,
+    // groundingChunks must be extracted when using maps grounding.
     sources: response.candidates?.[0]?.groundingMetadata?.groundingChunks || []
   };
 }
