@@ -28,3 +28,14 @@ class DonorRegistration(BaseModel):
     blood_type: str
     contact: str
     address: str
+
+from datetime import date
+from typing import List
+
+class DonorEligibilityRequest(BaseModel):
+    age: int
+    weight: float
+    last_donation_date: Optional[date] = None
+    has_tattoo_last_6_months: bool
+    medications: List[str] = []
+    blood_type: str

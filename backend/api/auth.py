@@ -1,9 +1,9 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from app.database import get_db
-from app.models.user import User, UserRole
-from app.schemas.request import UserLogin, UserCreate
+from database import get_db
+from models.user import User, UserRole
+from schemas.request import UserLogin, UserCreate
 import jose.jwt as jwt
 from datetime import datetime, timedelta
 
